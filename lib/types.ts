@@ -2,6 +2,8 @@ export interface Activity {
   id: string;
   fecha: string;
   cliente: string;
+  cliente_origen: string;
+  cliente_final: string;
   horas: number;
   descripcion: string;
   propietario?: string;

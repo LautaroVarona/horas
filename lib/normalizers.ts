@@ -7,6 +7,89 @@ export function cleanCliente(value: unknown): string {
   return String(value).trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Normaliza sufijos de entidad legal (S.L., S.L.U., etc.)
+ * Casos cubiertos:
+ * - "SL", "S L", "S.L" → "S.L."
+ * - "SLU", "S L U", "S.L.U" → "S.L.U."
+ */
+export function normalizeSuffix(value: string): string {
+  if (!value) return value;
+
+  // Normalizar S.L. (Sociedad Limitada)
+  const slRegex = /\b(s\.?\s*l\.?)\b/gi;
+  let result = value.replace(slRegex, "S.L.");
+
+  // Normalizar S.L.U. (Sociedad Limitada Unipersonal)
+  const sluRegex = /\b(s\.?\s*l\.?\s*u\.?)\b/gi;
+  result = result.replace(sluRegex, "S.L.U.");
+
+  return result;
+}
+
+/**
+ * Inferir cliente desde el nombre del expediente
+ * - Trim
+ * - Limpiar espacios dobles
+ * - Normalizar sufijos de entidades legales
+ */
+export function inferFromNombreExpediente(expediente: string): string {
+  if (!expediente) return "";
+
+  // Trim y limpiar espacios dobles
+  let cleaned = expediente.trim().replace(/\s+/g, " ");
+
+  // Normalizar sufijos
+  cleaned = normalizeSuffix(cleaned);
+
+  return cleaned;
+}
+
+/**
+ * Determina el cliente final basado en el cliente origen
+ * Regla: Si cliente_origen contiene "GRUPO", inferir desde expediente
+ * Si no, usar cliente_origen
+ */
+export function normalizeClienteFinal(
+  cliente_origen: string,
+  expediente: string | undefined
+): string {
+  if (!cliente_origen) return "";
+
+  // Si contiene "GRUPO" (case insensitive), inferir del expediente
+  if (cliente_origen.toUpperCase().includes("GRUPO")) {
+    if (expediente) {
+      const inferred = inferFromNombreExpediente(expediente);
+      if (inferred) return inferred;
+    }
+    // Si no hay expediente o está vacío, retornar el cliente_origen limpio
+    return cliente_origen;
+  }
+
+  // Si no contiene GRUPO, retornar cliente_origen como cliente_final
+  return cliente_origen;
+}
+
+/**
+ * Detecta y normaliza variantes del mismo cliente a una key única
+ * Ej: "HEALTHCARE FOAM S.L", "HEALTHCARE FOAM, S.L.U" → "HEALTHCARE FOAM"
+ * Esto es BONUS, se puede usar en agregaciones
+ */
+export function extractClienteKey(cliente: string): string {
+  if (!cliente) return "";
+
+  // Remover caracteres especiales como comas, puntos (excepto en sufijos)
+  let key = cliente.trim();
+
+  // Remover sufijos legales para agrupar variantes
+  key = key.replace(/[,\s]*(S\.L\.U?\.?|S\.L\.)\s*$/gi, "").trim();
+
+  // Limpiar espacios dobles nuevamente
+  key = key.replace(/\s+/g, " ");
+
+  return key;
+}
+
 export function parseHoras(value: unknown): number | null {
   if (value == null || value === "") return null;
 
@@ -90,10 +173,10 @@ export function normalizeActivity(
   const cantidadRaw = getCell(row, columns.cantidad);
 
   const fecha = parseFecha(fechaRaw);
-  const cliente = cleanCliente(clienteRaw);
+  const cliente_origen = cleanCliente(clienteRaw);
   const horas = parseHoras(cantidadRaw);
 
-  if (!fecha || !cliente || horas === null || horas <= 0) {
+  if (!fecha || !cliente_origen || horas === null || horas <= 0) {
     return null;
   }
 
@@ -112,10 +195,14 @@ export function normalizeActivity(
       ? String(getCell(row, columns.expediente) ?? "").trim() || undefined
       : undefined;
 
+  const cliente_final = normalizeClienteFinal(cliente_origen, expediente);
+
   return {
     id: crypto.randomUUID(),
     fecha: format(fecha, "yyyy-MM-dd"),
-    cliente,
+    cliente: cliente_origen, // Mantener cliente_origen en campo 'cliente' para compatibilidad
+    cliente_origen,
+    cliente_final,
     horas,
     descripcion,
     propietario,

@@ -21,7 +21,7 @@ export function filterActivities(
 
     if (
       filters.clientes.length > 0 &&
-      !filters.clientes.includes(activity.cliente)
+      !filters.clientes.includes(activity.cliente_final)
     ) {
       return false;
     }
@@ -73,7 +73,7 @@ export function groupByClient(data: Activity[]): ClientGroup[] {
   const map = new Map<string, number>();
 
   for (const activity of data) {
-    map.set(activity.cliente, (map.get(activity.cliente) ?? 0) + activity.horas);
+    map.set(activity.cliente_final, (map.get(activity.cliente_final) ?? 0) + activity.horas);
   }
 
   return Array.from(map.entries())
@@ -85,13 +85,13 @@ export function groupByClientAndMonth(data: Activity[]): ClientMonthGroup[] {
   const map = new Map<string, ClientMonthGroup>();
 
   for (const activity of data) {
-    const key = `${activity.cliente}|${monthKey(activity.mes, activity.anio)}`;
+    const key = `${activity.cliente_final}|${monthKey(activity.mes, activity.anio)}`;
     const existing = map.get(key);
     if (existing) {
       existing.horas += activity.horas;
     } else {
       map.set(key, {
-        cliente: activity.cliente,
+        cliente: activity.cliente_final,
         mes: activity.mes,
         anio: activity.anio,
         label: formatMonthLabel(activity.mes, activity.anio),
@@ -121,7 +121,7 @@ export function getFilterOptions(data: Activity[]): FilterOptions {
         key,
       });
     }
-    clientSet.add(activity.cliente);
+    clientSet.add(activity.cliente_final);
   }
 
   return {
@@ -137,5 +137,5 @@ export function getDistinctMonths(data: Activity[]): number {
 }
 
 export function getDistinctClients(data: Activity[]): number {
-  return new Set(data.map((a) => a.cliente)).size;
+  return new Set(data.map((a) => a.cliente_final)).size;
 }

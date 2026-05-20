@@ -26,7 +26,8 @@ const columns: ColumnDef<Activity>[] = [
     header: "Fecha",
     cell: ({ row }) => formatFecha(row.original.fecha),
   },
-  { accessorKey: "cliente", header: "Cliente" },
+  { accessorKey: "cliente_origen", header: "Cliente (Origen)" },
+  { accessorKey: "cliente_final", header: "Cliente (Final)" },
   {
     accessorKey: "horas",
     header: "Horas",
